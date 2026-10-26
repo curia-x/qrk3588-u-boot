@@ -57,6 +57,13 @@ static struct
   unsigned long file_length, read_length;
 } xyz;
 
+static bool xyz_binary;
+
+void xyzModem_set_binary(bool binary)
+{
+  xyz_binary = binary;
+}
+
 #define xyzModem_CHAR_TIMEOUT            2000	/* 2 seconds */
 #define xyzModem_MAX_RETRIES             20
 #define xyzModem_MAX_RETRIES_WITH_CRC    10
@@ -549,7 +556,8 @@ xyzModem_stream_read (char *buf, int size, int *err)
 				("ACK block %d (%d)\n", xyz.blk, __LINE__));
 		      xyz.next_blk = (xyz.next_blk + 1) & 0xFF;
 
-		      if (xyz.mode == xyzModem_xmodem || xyz.file_length == 0)
+              if (!xyz_binary &&
+                  (xyz.mode == xyzModem_xmodem || xyz.file_length == 0))
 			{
 			  /* Data blocks can be padded with ^Z (EOF) characters */
 			  /* This code tries to detect and remove them */

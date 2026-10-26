@@ -2202,7 +2202,25 @@ config ARCH_GXP
 	select OF_CONTROL
 	imply CMD_DM
 
+config TARGET_QRK3588
+	bool "Quest QRK3588 board"
+	select ARM64
+	select DM
+	select OF_CONTROL
+	select HAS_CUSTOM_SYS_INIT_SP_ADDR
+	help
+	  Independent ARM64 target for the Quest QRK3588 board.
+
 endchoice
+
+config QRK3588_ITS_DIAGNOSTICS
+	bool "Report QRK3588 ITS handoff state before booting Linux"
+	depends on TARGET_QRK3588
+	help
+	  Read the PHP power, clock, Q-channel and ITS status registers before
+	  entering Linux. Also enable the ITS command-error reporting bit.
+	  This changes hardware diagnostic state and is for controlled bring-up
+	  only; leave it disabled in production images.
 
 config SUPPORT_PASSING_ATAGS
 	bool "Support pre-devicetree ATAG-based booting"
@@ -2365,6 +2383,8 @@ source "arch/arm/mach-mediatek/Kconfig"
 source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-qemu/Kconfig"
+
+source "arch/arm/mach-quest/Kconfig"
 
 source "arch/arm/mach-rockchip/Kconfig"
 

@@ -142,6 +142,9 @@ extern char *pxelinux_configfile;
 extern struct in_addr	net_ip;
 /* Boot File name */
 extern char	net_boot_file_name[1024];
+
+/* Caller owns this receive range; zero capacity restores normal LMB checks. */
+void tftp_set_receive_range(ulong base, ulong capacity);
 /* The actual transferred size of the bootfile (in bytes) */
 extern u32	net_boot_file_size;
 /* Boot file size in blocks as reported by the DHCP server */

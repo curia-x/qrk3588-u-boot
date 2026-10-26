@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (c) 2026 ninozhang001@gmail.com
+ *
+ * QRK3588 device tree for the Quest platform.
+ */
+
+/dts-v1/;
+
+#include <board/quest/qrk3588_memory.h>
+#include <dt-bindings/clock/quest,qrk3588-cru-clk.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/reset/quest,qrk3588-cru-reset.h>
+
+/ {
+	compatible = "quest,qrk3588";
+	model = "Quest QRK3588";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		stdout-path = &uart2;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	uart2: uart2@feb50000 {
+		compatible = "quest,qrk3588-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xfeb50000 0x0 0x10000>;
+		clock-frequency = <24000000>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "okay";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <QRK3588_DRAM_BANK0_REG
+		       QRK3588_DRAM_BANK1_REG>;
+	};
+
+	cru: clock-controller@fd7c0000 {
+		compatible = "quest,qrk3588-cru";
+		reg = <0x0 0xfd7c0000 0x0 0x8000>,
+		      <0x0 0xfd7c8000 0x0 0x8000>,
+		      <0x0 0xfd7f0000 0x0 0x10000>;
+		reg-names = "cru", "phptop-cru", "pmu1-cru";
+		#clock-cells = <1>;
+		status = "okay";
+
+		reset: reset-controller {
+			compatible = "quest,qrk3588-reset";
+			reset-controller;
+			#reset-cells = <1>;
+		};
+	};
+
+	gpio0: gpio@fd8a0000 {
+		compatible = "quest,qrk3588-gpio";
+		reg = <0x0 0xfd8a0000 0x0 0x10000>;
+		quest,bank-id = <0>;
+		clocks = <&cru QRK3588_CLK_PCLK_GPIO0>;
+		clock-names = "pclk";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		/* GPIO0 port 12 and port 31 are not externally exposed GPIO pads. */
+		gpio-ranges = <&pinctrl 0 0 12>,
+			      <&pinctrl 13 13 18>;
+		gpio-reserved-ranges = <12 1>, <31 1>;
+
+		status = "okay";
+	};
+
+	gpio1: gpio@fec20000 {
+		compatible = "quest,qrk3588-gpio";
+		reg = <0x0 0xfec20000 0x0 0x10000>;
+		quest,bank-id = <1>;
+		clocks = <&cru QRK3588_CLK_PCLK_GPIO1>;
+		clock-names = "pclk";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-ranges = <&pinctrl 0 32 32>;
+
+		status = "okay";
+	};
+
+	gpio2: gpio@fec30000 {
+		compatible = "quest,qrk3588-gpio";
+		reg = <0x0 0xfec30000 0x0 0x10000>;
+		quest,bank-id = <2>;
+		clocks = <&cru QRK3588_CLK_PCLK_GPIO2>;
+		clock-names = "pclk";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		/*
+		 * GPIO2 controller port numbering is not fully linear with
+		 * physical A/B/C/D pads:
+		 *
+		 *   port 0..3   -> GPIO2_A0..A3
+		 *   port 6..21  -> GPIO2_A6..C5
+		 *   port 22     -> GPIO2_D0
+		 *   port 25..31 -> GPIO2_D1..D7
+		 */
+		gpio-ranges = <&pinctrl 0 64 4>,
+			      <&pinctrl 6 70 16>,
+			      <&pinctrl 22 88 1>,
+			      <&pinctrl 25 89 7>;
+		gpio-reserved-ranges = <4 2>, <23 2>;
+
+		status = "okay";
+	};
+
+	gpio3: gpio@fec40000 {
+		compatible = "quest,qrk3588-gpio";
+		reg = <0x0 0xfec40000 0x0 0x10000>;
+		quest,bank-id = <3>;
+		clocks = <&cru QRK3588_CLK_PCLK_GPIO3>;
+		clock-names = "pclk";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-ranges = <&pinctrl 0 96 30>;
+		gpio-reserved-ranges = <30 2>;
+
+		status = "okay";
+	};
+
+	gpio4: gpio@fec50000 {
+		compatible = "quest,qrk3588-gpio";
+		reg = <0x0 0xfec50000 0x0 0x10000>;
+		quest,bank-id = <4>;
+		clocks = <&cru QRK3588_CLK_PCLK_GPIO4>;
+		clock-names = "pclk";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-ranges = <&pinctrl 0 128 23>,
+			      <&pinctrl 24 152 6>;
+		gpio-reserved-ranges = <23 1>, <30 2>;
+
+		status = "okay";
+	};
+
+	pinctrl: pinctrl@fd5f0000 {
+		compatible = "quest,qrk3588-pinctrl";
+		reg = <0x0 0xfd5f0000 0x0 0x4000>,
+		      <0x0 0xfd5f4000 0x0 0x4000>,
+		      <0x0 0xfd5f8000 0x0 0x1000>,
+		      <0x0 0xfd5fd000 0x0 0x1000>;
+		reg-names = "pmu1-ioc",
+			    "pmu2-ioc",
+			    "bus-ioc",
+			    "emmc-ioc";
+		status = "okay";
+
+		emmc_pins: emmc-pins {
+			groups = "emmc";
+			function = "emmc";
+		};
+	};
+
+	emmc: mmc@fe2e0000 {
+		compatible = "quest,qrk3588-emmc-sdhci";
+		reg = <0x0 0xfe2e0000 0x0 0x10000>;
+
+		assigned-clocks = <&cru QRK3588_CLK_BCLK_EMMC>,
+				  <&cru QRK3588_CLK_CCLK_EMMC>;
+		assigned-clock-rates = <200000000>, <200000000>;
+
+		clocks = <&cru QRK3588_CLK_CCLK_EMMC>,
+			 <&cru QRK3588_CLK_HCLK_EMMC>,
+			 <&cru QRK3588_CLK_ACLK_EMMC>,
+			 <&cru QRK3588_CLK_BCLK_EMMC>,
+			 <&cru QRK3588_CLK_TMCLK_EMMC>;
+		clock-names = "core", "bus", "axi", "block", "timer";
+
+		resets = <&reset QRK3588_RESET_EMMC_HOST>;
+		reset-names = "emmc";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&emmc_pins>;
+
+		max-frequency = <24000000>;
+		bus-width = <8>;
+		non-removable;
+
+		status = "okay";
+	};
+
+	pcie1l0: pcie@f5800000 {
+		compatible = "quest,qrk3588-pcie";
+		device_type = "pci";
+		reg = <0x0 0xf5800000 0x0 0x00400000>,
+		      <0x0 0xf2000000 0x0 0x00100000>,
+		      <0x0 0xfe170000 0x0 0x00010000>,
+		      <0x0 0xfd5c0000 0x0 0x00010000>,
+		      <0x0 0xfee10000 0x0 0x00010000>,
+		      <0x0 0xfd5b0000 0x0 0x00010000>,
+		      <0x0 0xfd8d0000 0x0 0x00010000>;
+		reg-names = "dbi", "config", "apb", "pipe-grf", "phy", "php-grf",
+			    "pmu";
+		clocks = <&cru QRK3588_CLK_PCLK_PCIE_1L0>,
+			<&cru QRK3588_CLK_PCLK_PCIE_COMBO_PIPE_PHY1>,
+			<&cru QRK3588_CLK_REF_PIPE_PHY1>;
+		clock-names = "core", "phy", "ref";
+		resets = <&reset QRK3588_RESET_PCIE_FABRIC_MAIN>,
+			 <&reset QRK3588_RESET_PCIE_FABRIC_AUX>,
+			 <&reset QRK3588_RESET_PIPE_PHY1_GRF>,
+			 <&reset QRK3588_RESET_PIPE_PHY1_APB>,
+			 <&reset QRK3588_RESET_PIPE_PHY1_CORE>,
+			 <&reset QRK3588_RESET_PCIE1L0_PIPE>,
+			 <&reset QRK3588_RESET_PCIE1L0_POWER_UP>;
+		reset-names = "fabric-main", "fabric-aux", "phy-grf", "phy-apb",
+			      "phy-core", "pipe", "power-up";
+		bus-range = <0x0 0xff>;
+		ranges = <0x01000000 0x0 0x00000000 0x0 0xf2100000 0x0 0x00100000>,
+			 <0x02000000 0x0 0x01000000 0x0 0xf2200000 0x0 0x01e00000>;
+		reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		status = "okay";
+	};
+
+	pcie1l2: pcie@f6000000 {
+		compatible = "quest,qrk3588-pcie";
+		device_type = "pci";
+		reg = <0x0 0xf6000000 0x0 0x00400000>,
+		      <0x0 0xf4000000 0x0 0x00100000>,
+		      <0x0 0xfe190000 0x0 0x00010000>,
+		      <0x0 0xfd5bc000 0x0 0x00004000>,
+		      <0x0 0xfee00000 0x0 0x00010000>,
+		      <0x0 0xfd5b0000 0x0 0x00010000>,
+		      <0x0 0xfd8d0000 0x0 0x00010000>;
+		reg-names = "dbi", "config", "apb", "pipe-grf", "phy", "php-grf",
+			    "pmu";
+		clocks = <&cru QRK3588_CLK_PCLK_PCIE_1L2>,
+			<&cru QRK3588_CLK_PCLK_PCIE_COMBO_PIPE_PHY0>,
+			<&cru QRK3588_CLK_REF_PIPE_PHY0>;
+		clock-names = "core", "phy", "ref";
+		resets = <&reset QRK3588_RESET_PCIE_FABRIC_MAIN>,
+			 <&reset QRK3588_RESET_PCIE_FABRIC_AUX>,
+			 <&reset QRK3588_RESET_PIPE_PHY0_GRF>,
+			 <&reset QRK3588_RESET_PIPE_PHY0_APB>,
+			 <&reset QRK3588_RESET_PIPE_PHY0_CORE>,
+			 <&reset QRK3588_RESET_PCIE1L2_PIPE>,
+			 <&reset QRK3588_RESET_PCIE1L2_POWER_UP>;
+		reset-names = "fabric-main", "fabric-aux", "phy-grf", "phy-apb",
+			      "phy-core", "pipe", "power-up";
+		bus-range = <0x0 0xff>;
+		ranges = <0x01000000 0x0 0x00000000 0x0 0xf4100000 0x0 0x00100000>,
+			 <0x02000000 0x0 0x01000000 0x0 0xf4200000 0x0 0x01e00000>;
+		reset-gpios = <&gpio4 4 GPIO_ACTIVE_LOW>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		status = "okay";
+	};
+};

@@ -1,0 +1,73 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* Copyright (c) 2026 ninozhang001@gmail.com */
+
+#ifndef __BOARD_QUEST_QRK3588_CRU_H__
+#define __BOARD_QUEST_QRK3588_CRU_H__
+
+#include <linux/bitops.h>
+
+#define QRK3588_XIN24M_RATE		24000000UL
+
+/* Main CRU offsets from the RK3588 TRM register map. */
+#define CRU_CPLL_CON0			0x01a0
+#define CRU_CPLL_CON1			0x01a4
+#define CRU_CPLL_CON2			0x01a8
+#define CRU_CPLL_CON6			0x01b8
+#define CRU_GPLL_CON0			0x01c0
+#define CRU_GPLL_CON1			0x01c4
+#define CRU_GPLL_CON2			0x01c8
+#define CRU_GPLL_CON6			0x01d8
+#define CRU_MODE_CON00			0x0280
+#define CRU_CLKSEL_CON00		0x0300
+#define CRU_CLKSEL_CON01		0x0304
+#define CRU_CLKSEL_CON77		0x0434
+#define CRU_CLKSEL_CON78		0x0438
+#define QRK3588_CRU_CLKSEL_CON176	0x05c0
+#define QRK3588_CRU_CLKSEL_CON177	0x05c4
+#define CRU_GATE_CON00			0x0800
+#define CRU_GATE_CON16			0x0840
+#define CRU_GATE_CON17			0x0844
+#define CRU_GATE_CON31			0x087c
+#define QRK3588_CRU_GATE_CON32		0x0880
+#define QRK3588_CRU_GATE_CON33		0x0884
+#define QRK3588_CRU_GATE_CON34		0x0888
+#define QRK3588_CRU_GATE_CON37		0x0894
+#define QRK3588_CRU_GATE_CON38		0x0898
+#define QRK3588_CRU_GATE_CON77		0x0934
+#define CRU_SOFTRST_CON31		0x0a7c
+#define QRK3588_CRU_SOFTRST_CON32	0x0a80
+#define QRK3588_CRU_SOFTRST_CON33	0x0a84
+#define QRK3588_CRU_SOFTRST_CON34	0x0a88
+#define QRK3588_CRU_SOFTRST_CON77	0x0b34
+
+/* PHP top CRU offsets from the RK3588 TRM register map. */
+#define QRK3588_PHPTOP_PPLL_CON0		0x0200
+#define QRK3588_PHPTOP_PPLL_CON1		0x0204
+#define QRK3588_PHPTOP_PPLL_CON2		0x0208
+#define QRK3588_PHPTOP_PPLL_CON6		0x0218
+#define QRK3588_PHPTOP_GATE_CON00	0x0800
+#define QRK3588_PHPTOP_SOFTRST_CON00	0x0a00
+
+/* PMU1 CRU offsets. */
+#define PMU1_CRU_GATE_CON05		0x0814
+
+/* CRU_MODE_CON00 fields. */
+#define CPLL_MODE_SHIFT			8
+#define GPLL_MODE_SHIFT			2
+#define PLL_MODE_MASK			0x3
+#define PLL_MODE_SLOW			0
+#define PLL_MODE_NORMAL			1
+#define PLL_MODE_DEEP_SLOW		2
+
+/* CPLL/GPLL FRACPLL fields. */
+#define PLL_BYPASS			BIT(15)
+#define PLL_M_MASK			GENMASK(9, 0)
+#define PLL_S_SHIFT			6
+#define PLL_S_MASK			GENMASK(8, 6)
+#define PLL_P_MASK			GENMASK(5, 0)
+#define PLL_LOCK			BIT(15)
+
+/* eMMC host reset bits in CRU_SOFTRST_CON31. */
+#define EMMC_HOST_RESET_MASK		GENMASK(8, 4)
+
+#endif

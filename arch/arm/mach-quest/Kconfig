@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 ninozhang001@gmail.com
+
+if TARGET_QRK3588
+
+config SYS_SOC
+	default "quest"
+
+config SYS_VENDOR
+	default "quest"
+
+config SYS_BOARD
+	default "qrk3588"
+
+config TEXT_BASE
+	default 0x00200000
+
+config SYS_MALLOC_LEN
+	default 0x800000
+
+config SYS_MALLOC_F_LEN
+	default 0x4000
+
+config SYS_LOAD_ADDR
+	default 0x01400000
+
+config CUSTOM_SYS_INIT_SP_ADDR
+	default 0x01200000
+
+config NR_DRAM_BANKS
+	default 2
+
+config MMC_SDHCI_QRK3588
+	bool "Quest QRK3588 SDHCI support"
+	depends on DM_MMC && BLK
+	select MMC_SDHCI
+	select MMC_SDHCI_SDMA
+	default y
+	help
+	  Enable the Quest QRK3588 eMMC host driver. The driver uses U-Boot's
+	  generic SDHCI MMC command and data path. Platform clock, reset, and
+	  signal-routing providers must be available before the eMMC DT node is
+	  enabled.
+
+config CLK_QRK3588
+	bool "Quest QRK3588 clock controller"
+	select CLK
+	default y
+	help
+	  Enable the Quest QRK3588 clock controller.
+
+config RESET_QRK3588
+	bool "Quest QRK3588 reset controller"
+	depends on CLK_QRK3588
+	select DM_RESET
+	default y
+	help
+	  Enable the Quest QRK3588 reset controller.
+
+config GPIO_QRK3588
+	bool "Quest QRK3588 GPIO controller"
+	depends on CLK_QRK3588
+	select DM_GPIO
+	default y
+	help
+	  Enable Driver Model GPIO support for the five QRK3588 GPIO banks.
+
+config PINCTRL_QRK3588
+	bool "Quest QRK3588 pin controller"
+	select PINCTRL
+	select PINCTRL_GENERIC
+	select PINMUX
+	default y
+	help
+	  Enable the Quest QRK3588 pin controller. The initial implementation
+	  provides the eMMC pin-mux group.
+
+config QRK3588_SECURE_OS
+	bool "Authenticate Linux and DTB before booting"
+	default n
+	depends on CMDLINE
+	select EVENT
+	select FIT
+	select FIT_SIGNATURE
+	select RSA
+	select RSA_VERIFY
+	select SHA256
+	select CMD_BOOTM
+	select CMD_BOOTI
+	select LMB
+	help
+	  Optional OS authentication, independent of TF-A firmware authentication.
+	  Leave disabled for the normal shell and raw Linux/rootfs boot paths.
+	  Boot only conf-secure from the fixed eMMC FIT slot. A required
+	  configuration key must be embedded in the authenticated control DTB.
+	  Kernel parameters come from the authenticated Linux DTB. Failure
+	  stops boot; no shell or environment-controlled fallback is available.
+
+endif

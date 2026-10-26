@@ -156,6 +156,15 @@ static unsigned short tftp_block_size = TFTP_BLOCK_SIZE;
 static unsigned short tftp_block_size_option = CONFIG_TFTP_BLOCKSIZE;
 static unsigned short tftp_window_size_option = TFTP_WINDOWSIZE;
 
+static ulong receive_base;
+static ulong receive_capacity;
+
+void tftp_set_receive_range(ulong base, ulong capacity)
+{
+	receive_base = base;
+	receive_capacity = capacity;
+}
+
 static inline int store_block(int block, uchar *src, unsigned int len)
 {
 	ulong offset = block * tftp_block_size + tftp_block_wrap_offset -
@@ -164,7 +173,11 @@ static inline int store_block(int block, uchar *src, unsigned int len)
 	ulong store_addr = tftp_load_addr + offset;
 	void *ptr;
 
-	if (CONFIG_IS_ENABLED(LMB)) {
+	if (receive_capacity) {
+		if (tftp_load_addr != receive_base || offset > receive_capacity ||
+		    len > receive_capacity - offset || store_addr < receive_base)
+			return -1;
+	} else if (CONFIG_IS_ENABLED(LMB)) {
 		if (store_addr < tftp_load_addr ||
 		    lmb_read_check(store_addr, len)) {
 			puts("\nTFTP error: ");

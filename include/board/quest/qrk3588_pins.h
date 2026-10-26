@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* Copyright (c) 2026 ninozhang001@gmail.com */
+
+#ifndef __BOARD_QUEST_QRK3588_PINS_H__
+#define __BOARD_QUEST_QRK3588_PINS_H__
+
+#define QRK3588_GPIO_BANK_COUNT			5
+#define QRK3588_GPIO_GROUP_COUNT		4
+#define QRK3588_PINS_PER_GROUP			8
+#define QRK3588_PINS_PER_BANK			(QRK3588_GPIO_GROUP_COUNT * \
+						 QRK3588_PINS_PER_GROUP)
+#define QRK3588_PIN_COUNT			(QRK3588_GPIO_BANK_COUNT * \
+						 QRK3588_PINS_PER_BANK)
+
+#endif

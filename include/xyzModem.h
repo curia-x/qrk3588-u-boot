@@ -63,6 +63,8 @@ int   xyzModem_stream_open(connection_info_t *info, int *err);
 void  xyzModem_stream_close(int *err);
 void  xyzModem_stream_terminate(bool method, int (*getc)(void));
 int   xyzModem_stream_read(char *buf, int size, int *err);
+/* Preserve all block bytes; the caller validates binary length and padding. */
+void  xyzModem_set_binary(bool binary);
 char *xyzModem_error(int err);
 
 #endif /* _XYZMODEM_H_ */

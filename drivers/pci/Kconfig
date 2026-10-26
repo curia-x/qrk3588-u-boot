@@ -354,6 +354,14 @@ config PCI_MVEBU
 config PCIE_DW_COMMON
 	bool
 
+config PCIE_DW_QRK3588
+	bool "Quest QRK3588 DesignWare PCIe controller"
+	depends on TARGET_QRK3588
+	select PCIE_DW_COMMON
+	help
+	  Enable the DesignWare PCIe host controller glue for the
+	  Quest QRK3588 platform.
+
 config PCI_KEYSTONE
 	bool "TI Keystone PCIe controller"
 	select PCIE_DW_COMMON

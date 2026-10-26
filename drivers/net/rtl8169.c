@@ -49,6 +49,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 #include <pci.h>
+#include <time.h>
 #include <linux/delay.h>
 #include <linux/printk.h>
 
@@ -94,6 +95,7 @@ static int media[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
 #define RTL_MIN_IO_SIZE 0x80
 #define TX_TIMEOUT  (6*HZ)
+#define RTL8125_AUTONEG_TIMEOUT 10000 /* milliseconds */
 
 /* write/read MMIO register. Notice: {read,write}[wl] do the necessary swapping */
 #define RTL_W8(reg, val8)	writeb((val8), (void *)(ioaddr + (reg)))
@@ -152,6 +154,7 @@ enum RTL8125_registers {
 	IntrMask_8125 = 0x38,
 	IntrStatus_8125 = 0x3C,
 	TxPoll_8125 = 0x90,
+	GPHY_OCP = 0xb8,
 };
 
 enum RTL8169_register_content {
@@ -336,6 +339,7 @@ DEFINE_ALIGN_BUFFER(u8, rxb, NUM_RX_DESC * RX_BUF_SIZE, RTL8169_ALIGN);
 
 struct rtl8169_private {
 	ulong iobase;
+	bool phy_ocp;
 	void *mmio_addr;	/* memory map physical address */
 	int chipset;
 	unsigned long cur_rx;	/* Index into the Rx descriptor buffer of next Rx pkt. */
@@ -362,40 +366,55 @@ static struct pci_device_id supported[] = {
 	{}
 };
 
-void mdio_write(int RegAddr, int value)
+/*
+ * RTL8125 standard MII registers use GPHY_OCP instead of PHYAR. The
+ * register mapping and handshake are documented by the generic Linux
+ * Realtek PCI NIC driver (r8169_main.c, GPL-2.0-only).
+ */
+#define RTL8125_PHY_BASE 0xa400
+
+static int rtl8169_mdio_write(struct rtl8169_private *priv, int reg, int value)
 {
+	void *port = (void *)(priv->iobase + (priv->phy_ocp ? GPHY_OCP : PHYAR));
+	u32 address = priv->phy_ocp ?
+		(RTL8125_PHY_BASE + 2 * (reg & 0x1f)) << 15 :
+		(reg & 0xff) << 16;
 	int i;
 
-	RTL_W32(PHYAR, 0x80000000 | (RegAddr & 0xFF) << 16 | value);
+	writel(BIT(31) | address | (value & 0xffff), port);
 	udelay(1000);
 
 	for (i = 2000; i > 0; i--) {
-		/* Check if the RTL8169 has completed writing to the specified MII register */
-		if (!(RTL_R32(PHYAR) & 0x80000000)) {
-			break;
-		} else {
-			udelay(100);
-		}
+		if (!(readl(port) & BIT(31)))
+			return 0;
+		udelay(100);
 	}
+
+	/* Preserve best-effort PHY writes for legacy devices. */
+	return priv->phy_ocp ? -ETIMEDOUT : 0;
 }
 
-int mdio_read(int RegAddr)
+static int rtl8169_mdio_read(struct rtl8169_private *priv, int reg)
 {
-	int i, value = -1;
+	void *port = (void *)(priv->iobase + (priv->phy_ocp ? GPHY_OCP : PHYAR));
+	u32 address = priv->phy_ocp ?
+		(RTL8125_PHY_BASE + 2 * (reg & 0x1f)) << 15 :
+		(reg & 0xff) << 16;
+	u32 value;
+	int i;
 
-	RTL_W32(PHYAR, 0x0 | (RegAddr & 0xFF) << 16);
+	writel(address, port);
 	udelay(1000);
 
 	for (i = 2000; i > 0; i--) {
-		/* Check if the RTL8169 has completed retrieving data from the specified MII register */
-		if (RTL_R32(PHYAR) & 0x80000000) {
-			value = (int) (RTL_R32(PHYAR) & 0xFFFF);
-			break;
-		} else {
-			udelay(100);
-		}
+		value = readl(port);
+		if (value & BIT(31))
+			return value & 0xffff;
+		udelay(100);
 	}
-	return value;
+
+	/* Preserve the legacy read-failure sentinel and its existing callers. */
+	return priv->phy_ocp ? -ETIMEDOUT : -1;
 }
 
 static int rtl8169_init_board(unsigned long dev_iobase, const char *name)
@@ -898,7 +917,7 @@ INIT - Look for an adapter, this routine's visible to the outside
 
 #define board_found 1
 #define valid_link 0
-static int rtl_init(unsigned long dev_ioaddr, const char *name,
+static int rtl_init(struct rtl8169_private *priv, const char *name,
 		    unsigned char *enetaddr)
 {
 	static int board_idx = -1;
@@ -908,7 +927,7 @@ static int rtl_init(unsigned long dev_ioaddr, const char *name,
 #ifdef DEBUG_RTL8169
 	printf ("%s\n", __FUNCTION__);
 #endif
-	ioaddr = dev_ioaddr;
+	ioaddr = priv->iobase;
 
 	board_idx++;
 
@@ -938,7 +957,11 @@ static int rtl_init(unsigned long dev_ioaddr, const char *name,
 
 	/* if TBI is not endbled */
 	if (!(RTL_R8(PHYstatus) & TBI_Enable)) {
-		int val = mdio_read(PHY_AUTO_NEGO_REG);
+		ulong start = 0;
+		int val = rtl8169_mdio_read(priv, PHY_AUTO_NEGO_REG);
+
+		if (priv->phy_ocp && val < 0)
+			return val;
 
 		option = (board_idx >= MAX_UNITS) ? 0 : media[board_idx];
 		/* Force RTL8169 in 10/100/1000 Full/Half mode. */
@@ -971,33 +994,55 @@ static int rtl_init(unsigned long dev_ioaddr, const char *name,
 			default:
 				break;
 			}
-			mdio_write(PHY_AUTO_NEGO_REG, Cap10_100 | (val & 0x1F));	/* leave PHY_AUTO_NEGO_REG bit4:0 unchanged */
-			mdio_write(PHY_1000_CTRL_REG, Cap1000);
+			rc = rtl8169_mdio_write(priv, PHY_AUTO_NEGO_REG,
+						Cap10_100 | (val & 0x1F));
+			if (rc)
+				return rc;
+			rc = rtl8169_mdio_write(priv, PHY_1000_CTRL_REG, Cap1000);
+			if (rc)
+				return rc;
 		} else {
 #ifdef DEBUG_RTL8169
 			printf("%s: Auto-negotiation Enabled.\n",
 			       name);
 #endif
 			/* enable 10/100 Full/Half Mode, leave PHY_AUTO_NEGO_REG bit4:0 unchanged */
-			mdio_write(PHY_AUTO_NEGO_REG,
-				   PHY_Cap_10_Half | PHY_Cap_10_Full |
-				   PHY_Cap_100_Half | PHY_Cap_100_Full |
-				   (val & 0x1F));
+			rc = rtl8169_mdio_write(priv, PHY_AUTO_NEGO_REG,
+						PHY_Cap_10_Half | PHY_Cap_10_Full |
+						PHY_Cap_100_Half | PHY_Cap_100_Full |
+						(val & 0x1F));
+			if (rc)
+				return rc;
 
 			/* enable 1000 Full Mode */
-			mdio_write(PHY_1000_CTRL_REG, PHY_Cap_1000_Full);
+			rc = rtl8169_mdio_write(priv, PHY_1000_CTRL_REG,
+						PHY_Cap_1000_Full);
+			if (rc)
+				return rc;
 
 		}
 
 		/* Enable auto-negotiation and restart auto-nigotiation */
-		mdio_write(PHY_CTRL_REG,
-			   PHY_Enable_Auto_Nego | PHY_Restart_Auto_Nego);
+		rc = rtl8169_mdio_write(priv, PHY_CTRL_REG,
+					PHY_Enable_Auto_Nego | PHY_Restart_Auto_Nego);
+		if (rc)
+			return rc;
 		udelay(100);
 
-		/* wait for auto-negotiation process */
+		/* Keep legacy polling; bound elapsed time only for RTL8125. */
+		if (priv->phy_ocp)
+			start = get_timer(0);
 		for (i = 10000; i > 0; i--) {
+			int status;
+
+			if (priv->phy_ocp &&
+			    get_timer(start) >= RTL8125_AUTONEG_TIMEOUT)
+				break;
+			status = rtl8169_mdio_read(priv, PHY_STAT_REG);
+			if (priv->phy_ocp && status < 0)
+				return status;
 			/* check if auto-negotiation complete */
-			if (mdio_read(PHY_STAT_REG) & PHY_Auto_Nego_Comp) {
+			if (status & PHY_Auto_Nego_Comp) {
 				udelay(100);
 				option = RTL_R8(PHYstatus);
 				if (option & _1000bpsF) {
@@ -1067,7 +1112,8 @@ static int rtl8169_eth_probe(struct udevice *dev)
 					     PCI_REGION_TYPE, PCI_REGION_MEM);
 
 	debug("rtl8169: REALTEK RTL8169 @0x%lx\n", priv->iobase);
-	ret = rtl_init(priv->iobase, dev->name, plat->enetaddr);
+	priv->phy_ocp = pplat->device == 0x8125;
+	ret = rtl_init(priv, dev->name, plat->enetaddr);
 	if (ret < 0) {
 		printf(pr_fmt("failed to initialize card: %d\n"), ret);
 		return ret;
